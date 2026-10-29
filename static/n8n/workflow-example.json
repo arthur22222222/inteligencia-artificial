@@ -1,0 +1,301 @@
+{
+  "name": "Nexa AI — Receber agenda",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexa-agenda",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "a1f0b6d4-0e42-4d2d-9d6f-5f6f1f1c9a01",
+      "name": "Webhook Nexa",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -520,
+        0
+      ],
+      "webhookId": "7d7b3f5e-1c2d-4c3b-8a9e-2f2a6b1d0c10",
+      "notes": "Copie a Production URL deste nó e cole em Integrações na Nexa AI."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normaliza o payload enviado pela Nexa AI.\nconst raw = $json.body ?? $json;\nconst event = String(raw.event || \"unknown\");\nconst user = raw.user || {};\nconst appointment = raw.appointment || null;\nconst previous = appointment?.previous || null;\n\nif (raw.source && raw.source !== \"nexa-ai\") {\n  throw new Error(\"Evento recusado: origem diferente de nexa-ai.\");\n}\n\nconst when = appointment\n  ? `${appointment.date || \"?\"} às ${appointment.time || \"?\"}`\n  : \"sem horário\";\nconst previousWhen = previous ? `${previous.date || \"?\"} às ${previous.time || \"?\"}` : null;\n\nconst service = appointment?.service?.name || \"sessão\";\nconst label = {\n  \"appointment.created\": `Novo agendamento: ${user.name || user.email} — ${service} em ${when}`,\n  \"appointment.rescheduled\": previousWhen\n    ? `Agendamento reagendado: ${user.name || user.email} — ${service} de ${previousWhen} para ${when}`\n    : `Agendamento reagendado: ${user.name || user.email} — ${service} agora em ${when}`,\n  \"appointment.cancelled\": `Agendamento cancelado: ${user.name || user.email} — ${service} em ${when}`,\n  \"user.registered\": `Novo cadastro na Nexa: ${user.name || user.email}`,\n  \"integration.test\": \"Teste de conexão recebido com sucesso\",\n}[event] || `Evento recebido: ${event}`;\n\nreturn [{\n  json: {\n    event,\n    label,\n    user,\n    appointment,\n    previous,\n    received_at: new Date().toISOString(),\n    source: \"nexa-ai\",\n  },\n}];"
+      },
+      "id": "b8c2d3e4-1f23-4a5b-9c6d-7e8f9a0b1c02",
+      "name": "Validar evento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -300,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c1d2e3f4-2a3b-4c5d-8e9f-0a1b2c3d4e01",
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "appointment.created",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "appointment.created"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "f4a5b6c7-5d6e-4f7a-8b9c-0d1e2f3a4b04",
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "appointment.rescheduled",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "appointment.rescheduled"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "d2e3f4a5-3b4c-4d5e-9f0a-1b2c3d4e5f02",
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "appointment.cancelled",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "appointment.cancelled"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "e3f4a5b6-4c5d-4e6f-8a1b-2c3d4e5f6a03",
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "user.registered",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "user.registered"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "outros"
+        }
+      },
+      "id": "c9d3e4f5-2a34-4b6c-8d7e-9f0a1b2c3d03",
+      "name": "Roteador de eventos",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -80,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "d4e5f6a7-3b45-4c7d-9e8f-0a1b2c3d4e04",
+      "name": "Agendamento criado",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        190,
+        -220
+      ],
+      "notes": "Substitua por Google Calendar, WhatsApp, CRM, e-mail etc."
+    },
+    {
+      "parameters": {},
+      "id": "a6b7c8d9-6e70-4f1a-8b2c-3d4e5f6a7b11",
+      "name": "Agendamento reagendado",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        190,
+        -80
+      ],
+      "notes": "Avise o cliente sobre o novo horário e atualize calendário/CRM."
+    },
+    {
+      "parameters": {},
+      "id": "e5f6a7b8-4c56-4d8e-8f9a-1b2c3d4e5f05",
+      "name": "Agendamento cancelado",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        190,
+        60
+      ],
+      "notes": "Aqui você pode avisar o time ou atualizar o CRM."
+    },
+    {
+      "parameters": {},
+      "id": "f6a7b8c9-5d67-4e9f-9a0b-2c3d4e5f6a06",
+      "name": "Novo usuário",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        190,
+        200
+      ],
+      "notes": "Envie um e-mail de boas-vindas ou crie o contato no CRM."
+    },
+    {
+      "parameters": {},
+      "id": "a7b8c9d0-6e78-4f0a-8b1c-3d4e5f6a7b07",
+      "name": "Outros eventos",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        190,
+        340
+      ],
+      "notes": "Testes de conexão e eventos futuros caem aqui."
+    },
+    {
+      "parameters": {
+        "content": "## Nexa AI + n8n\n\n1. Ative este workflow (toggle **Active**).\n2. Abra o nó **Webhook Nexa** e copie a **Production URL**.\n3. Na Nexa AI, vá em **Integrações**, cole a URL e clique em **Testar conexão**.\n4. Nos nós de ação, troque os **No Operation** por Google Calendar, WhatsApp, CRM etc.\n\nEventos: `appointment.created`, `appointment.rescheduled`, `appointment.cancelled`, `user.registered`.\n\nO webhook responde 200 imediatamente para a Nexa AI.",
+        "height": 280,
+        "width": 400,
+        "color": 5
+      },
+      "id": "b8c9d0e1-7f89-4a1b-9c2d-4e5f6a7b8c08",
+      "name": "Como usar",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        220
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Nexa": {
+      "main": [
+        [
+          {
+            "node": "Validar evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar evento": {
+      "main": [
+        [
+          {
+            "node": "Roteador de eventos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Roteador de eventos": {
+      "main": [
+        [
+          {
+            "node": "Agendamento criado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Agendamento reagendado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Agendamento cancelado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Novo usuário",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Outros eventos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "6a2f8b3c-1d4e-4f5a-8b6c-7d8e9f0a1b2c",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {},
+  "tags": []
+}

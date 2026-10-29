@@ -1,0 +1,5 @@
+/* Ponto de entrada dos estilos — mantém o HTML simples e a ordem previsível. */
+@import url("base.css");
+@import url("landing.css");
+@import url("auth.css");
+@import url("app.css");
